@@ -1,12 +1,29 @@
-module.exports = async (page, { mainMdFilenameWithoutExt, pathToStatic }) => {
+module.exports = async (page,anchors,{ mainMdFilenameWithoutExt, pathToStatic }) => {
   await page.addScriptTag({
     url: "https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js",
   });
 
+  page.on('console', msg => console.log('PRZEGLĄDARKA:', msg.text()));
   return page.evaluate(
-    ({ mainMdFilenameWithoutExt, pathToStatic }) => {
-      const errors = [];
+    ({ mainMdFilenameWithoutExt, pathToStatic, anchors }) => {
 
+      const errors = [];
+        const fixMarkdownLinks = () => {
+            const links = document.querySelectorAll('a');
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && anchors[href.split("/").pop()+".md"]) {
+                    const rawText = anchors[href.split("/").pop()+".md"];
+                    const targetId = rawText.toLowerCase().replace(/^#+\s*/, '').trim().replace(/\s+/g, '-');
+                    // console.log("Raw text: " + rawText);
+                    // console.log("Target id: " + targetId);
+                    link.href = '#' + targetId;
+                    link.removeAttribute('target');
+                    const targetEl = document.getElementById(targetId);
+                    // console.log(`Czy znaleziono cel #${targetId} w DOM? `, targetEl ? "TAK" : "NIE");
+                }
+            });
+        };
       const makeDocsifyPrettyPrintable = () => {
         const nav = document.querySelector("nav");
         if (nav) nav.remove();
@@ -17,6 +34,14 @@ module.exports = async (page, { mainMdFilenameWithoutExt, pathToStatic }) => {
         const button = document.querySelector("button.sidebar-toggle");
         if (button) button.remove();
 
+        const details = document.querySelectorAll("details");
+        if(details){
+            details.forEach(details=>details.open = true);
+        }
+        const tabContents = document.querySelectorAll(".docsify-tabs__tab");
+          tabContents.forEach(content => {
+              content.classList.add("docsify-tabs__tab--active")
+          });
         document.querySelector("section.content").style = `
           position: static;
           padding-top: 0;
@@ -97,14 +122,15 @@ module.exports = async (page, { mainMdFilenameWithoutExt, pathToStatic }) => {
       };
 
       const main = () => {
+          processAnchors();
+          fixMarkdownLinks();
         makeDocsifyPrettyPrintable();
-        processAnchors();
       };
 
       main();
 
       return errors;
     },
-    { mainMdFilenameWithoutExt, pathToStatic },
+    { mainMdFilenameWithoutExt, pathToStatic,anchors },
   );
 };

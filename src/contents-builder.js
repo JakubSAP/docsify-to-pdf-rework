@@ -4,6 +4,7 @@ const path = require("path");
 const markdownLinkExtractor = require("markdown-link-extractor");
 const isUrl = require("is-url");
 const { flatten } = require("lodash");
+const logger = require("./logger.js");
 
 const [readFile] = [fs.readFile].map(fn => util.promisify(fn));
 
@@ -15,7 +16,6 @@ const createRoadMap = ({ contents }) => async () => {
     const b = path.resolve(sidebarFileName);
     return { dir: a, filePath: b };
   });
-
   const sidebarFileContents = await Promise.all(
     sidebarFilePaths.map(async ({ dir, filePath }) => ({
       dir,
@@ -29,12 +29,12 @@ const createRoadMap = ({ contents }) => async () => {
 
   const contentsArray = sidebarFileContents.map(({ file, dir }) =>
     markdownLinkExtractor(file)
+        .filter(link=>!String(link).includes("#"))
       .filter(
 	     link => !isUrl(link) && !(fs.lstatSync(  path.resolve(dir,link) ).isDirectory()) 
       )
       .map(link => path.resolve(dir, link)),
   );
-
   return await flatten(contentsArray);
 };
 

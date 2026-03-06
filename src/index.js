@@ -32,21 +32,23 @@ const run = async incomingConfig => {
   const { createRoadMap } = require("./contents-builder.js")(config);
   const { runDocsifyRenderer } = require("./docsify-server.js")(config);
   const { htmlToPdf } = require("./render.js")(config);
+  const { createPdfLinks } = require("./create-pdf-links")(config);
 
   try {
     await cleanUp();
     await prepareEnv();
     const roadMap = await createRoadMap();
     await combineMarkdowns(roadMap);
-
+    const anchors = await createPdfLinks()
+      logger.info(JSON.stringify(anchors, null, 2));
     runDocsifyRenderer();
-    await htmlToPdf();
+    await htmlToPdf(anchors);
 
     logger.success(path.resolve(config.pathToPublic));
   } catch (error) {
     logger.err("run error", error);
   } finally {
-    closeProcess(0);
+    // closeProcess(0);
   }
 };
 

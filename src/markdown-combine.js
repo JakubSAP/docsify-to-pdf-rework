@@ -10,7 +10,6 @@ const [readFile, writeFile, exists] = [fs.readFile, fs.writeFile, fs.exists].map
 
 const combineMarkdowns = ({ contents, pathToStatic, mainMdFilename, pathToDocsifyEntryPoint, pageBreak }) => async links => {
   try {
-
     const files = await Promise.all(
       await links.map(async filename => {
         const fileExist = await exists(filename);
@@ -36,10 +35,14 @@ const combineMarkdowns = ({ contents, pathToStatic, mainMdFilename, pathToDocsif
       const separator = pageBreak && pageBreak.enabled && pageBreak.type === 'div' 
         ? (pageBreak.html || "\n\n<div style='page-break-after: always;'></div>\n\n")
         : "\n\n\n\n";
-      
-      const content = files
-        .map(({ content, name }) => beautifyImages({ pathToDocsifyEntryPoint, pathToStatic })(content, name))
-        .join(separator);
+
+        const content = files
+            .map(({ content, name }) => {
+                const fileName = path.basename(name);
+                const beautifiedContent = beautifyImages({ pathToDocsifyEntryPoint, pathToStatic })(content, name);
+                return `\n\n<div id="${fileName}"></div>\n\n${beautifiedContent}`;
+            })
+            .join(separator);
       await writeFile(resultFilePath, content);
     } catch (e) {
       logger.err(e);

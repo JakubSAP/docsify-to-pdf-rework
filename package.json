@@ -1,17 +1,17 @@
 {
   "author": {
-    "name": "Carlos Augusto",
-    "email": "engaugusto@gmail.com",
-    "url": "https://github.com/engaugusto"
+    "name": "Jakub Godlewski",
+    "email": "jakub.godlewski@sap.com",
+    "url": "https://github.com/JakubSAP"
   },
   "bin": {
     "converter": ".bin/cli.js",
     "docsify-to-pdf": ".bin/cli.js"
   },
   "bugs": {
-    "url": "https://github.com/engaugusto/docsify-to-pdf/issues"
+    "url": "https://github.com/JakubSAP/docsify-to-pdf-rework.git/issues"
   },
-  "bundleDependencies": false,
+  "bundleDependencies": [],
   "dependencies": {
     "colors": "^1.4.0",
     "docsify-cli": "^4.4.4",
@@ -19,6 +19,7 @@
     "is-url": "^1.2.4",
     "lodash": "^4.17.21",
     "markdown-link-extractor": "^1.2.0",
+    "pdf-parse": "^2.4.5",
     "puppeteer": "^22.8.2",
     "rcfile": "^1.0.3",
     "rimraf": "^3.0.2",
@@ -29,7 +30,7 @@
   "devDependencies": {
     "prettier": "^3.2.5"
   },
-  "homepage": "https://github.com/engaugusto/docsify-to-pdf#readme",
+  "homepage": "https://github.com/JakubSAP/docsify-to-pdf-rework.git#readme",
   "keywords": [
     "docsify",
     "pdf",
@@ -38,10 +39,10 @@
   ],
   "license": "ISC",
   "main": "index.js",
-  "name": "docsify-to-pdf",
+  "name": "docsify-to-pdf-rework",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/engaugusto/docsify-to-pdf.git"
+    "url": "git+https://github.com/JakubSAP/docsify-to-pdf-rework.git"
   },
   "scripts": {
     "patch-release": "npm version patch && npm publish && git push --follow-tags"
