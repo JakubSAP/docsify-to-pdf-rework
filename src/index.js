@@ -39,7 +39,6 @@ const run = async incomingConfig => {
         const roadMap = await createRoadMap();
         await combineMarkdowns(roadMap);
         const anchors = await createPdfLinks()
-        // logger.info(JSON.stringify(anchors, null, 2));
         runDocsifyRenderer();
         await htmlToPdf(anchors);
 
@@ -47,7 +46,7 @@ const run = async incomingConfig => {
     } catch (error) {
         logger.err("run error", error);
     } finally {
-        // closeProcess(0);
+        closeProcess(0);
     }
 };
 

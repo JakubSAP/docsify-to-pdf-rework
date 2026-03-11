@@ -8,21 +8,36 @@ module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic})
 
         const errors = [];
         const fixMarkdownLinks = () => {
-            const links = document.querySelectorAll('a');
-            links.forEach(link => {
+            const links = [...document.querySelectorAll('a')].filter(link => {
                 const href = link.getAttribute('href');
-                if (href && anchors[href.split("/").pop() + ".md"]) {
-                    const rawText = anchors[href.split("/").pop() + ".md"];
-                    const targetId = rawText.toLowerCase().replace(/^#+\s*/, '').trim().replace(/\s+/g, '-');
-                    // console.log("Raw text: " + rawText);
-                    // console.log("Target id: " + targetId);
-                    link.href = '#' + targetId;
-                    link.removeAttribute('target');
-                    const targetEl = document.getElementById(targetId);
-                    // console.log(`Czy znaleziono cel #${targetId} w DOM? `, targetEl ? "TAK" : "NIE");
+                return href && href.startsWith("#/");
+            })
+            anchors = anchors.map(element => {
+                if (element.file.includes(".md")) {
+                    element.file = element.file.replace(".md", "");
                 }
+                return element;
             });
-        };
+            let counter = 0;
+            for (link of links) {
+                const href = link.getAttribute('href').slice(2);
+                if (href) {
+                    const foundAnchor = anchors.find(a => a.file === href);
+                    if (foundAnchor) {
+                        counter++;
+                        const rawText = foundAnchor.anchorText;
+                        const targetId = rawText
+                        .toLowerCase()
+                        .replace(/^#+\s*/, '')
+                        .trim()
+                        .replace(/[^\w\s-]/g, '')
+                        .replace(/\s+/g, '-');
+                        link.href = '#' + targetId;
+                        link.removeAttribute('target');
+                    }
+                }
+            }
+        }
         const makeDocsifyPrettyPrintable = () => {
             const nav = document.querySelector("nav");
             if (nav) nav.remove();

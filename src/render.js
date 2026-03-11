@@ -97,7 +97,7 @@ const htmlToPdf = ({
         });
     } catch (err) {
         logger.err("puppeteer renderer error:", err);
-        // await closeProcess(1);
+        await closeProcess(1);
     }
 };
 
