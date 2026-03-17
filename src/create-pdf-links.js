@@ -1,3 +1,12 @@
+<!--
+ Copyright (c) 2026 SAP SE or an SAP affiliate company. All rights reserved.
+-->
+/**
+ * @fileoverview Merges linked Markdown files into a single master document and resolves image paths.
+ * This module is designed for Docsify projects to prepare content for PDF generation by
+ * flattening the file structure and maintaining internal navigation via anchors.
+ */
+
 const fs = require("fs");
 const util = require("util");
 const path = require("path");
@@ -7,6 +16,12 @@ const beautifyImages = require("./beautify-image-paths.js");
 
 const [readFile, writeFile] = [fs.readFile, fs.writeFile].map(fn => util.promisify(fn));
 
+/**
+ * Searches for a file by name within a directory tree, excluding 'node_modules'.
+ * * @param {string} dir - The starting directory path.
+ * @param {string} fileName - The name of the file to locate.
+ * @returns {string|null} The absolute path to the found file, or null if not found.
+ */
 const findFileRecursive = (dir, fileName) => {
     if (dir.includes('node_modules')) return null;
     const files = fs.readdirSync(dir, {withFileTypes: true});
@@ -22,97 +37,141 @@ const findFileRecursive = (dir, fileName) => {
     return null;
 };
 
-const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename}) => async () => {
+/**
+ * Initializes the PDF link creator with project-specific paths.
+ * * @param {Object} config - Configuration object.
+ * @param {string} config.pathToDocsifyEntryPoint - Absolute path to the Docsify root folder.
+ * @param {string} config.pathToStatic - Path to the directory where the output files are stored.
+ * @param {string} config.mainMdFilename - The name of the main combined Markdown file.
+ * @returns {function(): Promise<Object[]>} An asynchronous function that processes the document.
+ */
+const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename}) =>
+  /**
+   * Merges linked .md files into the main file, fixes image paths, and generates an anchor map.
+   * * @async
+   * @returns {Promise<Object[]>} A promise resolving to an array of anchor objects containing file paths and header text.
+   */
+  async () => {
 
-    const absoluteStaticPath = path.resolve(pathToDocsifyEntryPoint, pathToStatic);
-    const mainFilePath = path.resolve(absoluteStaticPath, mainMdFilename);
-    const mainFileContent = await readFile(mainFilePath, 'utf8');
-    const mainLines = mainFileContent.split(/\r?\n/);
-    const regex = /\[.*?\]\(\s*(.*?\.md(?:\s+?':.*?')?)\s*\)/g;
-    const idLinksRegex = /\[.*?\]\(\s*([^)\s]+\?id=[^)\s]+)\s*\)/g;
-    const links = [...mainFileContent.matchAll(regex)]
-    .filter(match => !match[1].startsWith("http"))
-    .map(match => {
-        const cleanPath = match[1].split("'")[0].trim();
-        return {
-            fullMatch: match[0], cleanPath: cleanPath
-        };
-    });
-    const links2 = [...mainFileContent.matchAll(idLinksRegex)].filter(match => !match[1].startsWith("http"));
-    const anchors = [];
-    for (const link of links) {
-        let filePath = path.resolve(pathToDocsifyEntryPoint, link.cleanPath);
-        if (!exists(filePath)) {
-            const fileNameOnly = path.basename(link.cleanPath);
-            filePath = findFileRecursive(pathToDocsifyEntryPoint, fileNameOnly);
-        }
-        if (exists(filePath)) {
-            const fileContent = await readFile(filePath, "utf-8");
-            const containsPng = checkForPng(fileContent);
-            if (containsPng) {
-                const content = beautifyImages({pathToDocsifyEntryPoint, pathToStatic})(fileContent, filePath);
-                await writeFile(filePath, content);
-            }
-            const lines = fileContent.split(/\r?\n/);
-            const firstContentfulLine = lines.find(line => line.trim().length > 0);
-            if (firstContentfulLine && firstContentfulLine.includes('#') && !link.fullMatch.includes(":include")) {
-                anchors.push({
-                    file: link.cleanPath, anchorText: firstContentfulLine.trim()
-                });
-            } else {
-                if (fileContent) {
-                    for (let i = 0; i < mainLines.length; i++) {
-                        if (mainLines[i].includes(link.fullMatch)) {
-                            mainLines[i] = mainLines[i].replace(link.fullMatch, fileContent.trim());
-                        }
-                    }
-                }
-            }
-        } else {
-            logger.warn(`File does not exist: ${filePath}`);
-        }
-    }
-    await writeFile(mainFilePath, mainLines.join('\n'));
-    for (link of links2) {
-        const extractedFilePath = link[1].split("?")[0] + ".md";
-        const fileName = extractedFilePath.split("/").pop();
-        const extractedFileAnchor = link[1].split("?id=")[1];
-        let filePath = path.resolve(pathToDocsifyEntryPoint, extractedFilePath)
-        const fileContent = await readFile(filePath, "utf-8");
-        const containsPng = checkForPng(fileContent);
-        if (containsPng) {
-            const content = beautifyImages({pathToDocsifyEntryPoint, pathToStatic})(fileContent, filePath);
-            await writeFile(filePath, content);
-        }
-        if (!exists(filePath)) {
-            filePath = findFileRecursive(pathToDocsifyEntryPoint, fileName)
-        }
-        if (exists(filePath)) {
-            const fileAnchor = extractedFileAnchor
-            .split('-')
-            .join(' ');
-            const anchorLine = mainLines.find(line => {
-                const normalizedLine = line.toLowerCase().replace(/[^a-z0-9#]/g, '');
-                const normalizedAnchor = fileAnchor.toLowerCase().replace(/[^a-z0-9]/g, '');
-                return normalizedLine.includes(normalizedAnchor) && normalizedLine.startsWith("#");
-            });
-            anchors.push({
-                file: link[1], anchorText: anchorLine.trim()
-            });
-        }
-    }
+      const absoluteStaticPath = path.resolve(pathToDocsifyEntryPoint, pathToStatic);
+      const mainFilePath = path.resolve(absoluteStaticPath, mainMdFilename);
+      const mainFileContent = await readFile(mainFilePath, 'utf8');
+      const mainLines = mainFileContent.split(/\r?\n/);
 
-    await writeFile(mainFilePath, mainLines.join('\n'));
-    return anchors;
-};
+      // Regex for standard Markdown links and Docsify specific ID links
+      const mdLinksRegex = /\[.*?\]\(\s*(.*?\.md(?:\s+?':.*?')?)\s*\)/g;
+      const idLinksRegex = /\[.*?\]\(\s*([^)\s]+\?id=[^)\s]+)\s*\)/g;
 
+      // Process standard Markdown links
+      const mdLinks = [...mainFileContent.matchAll(mdLinksRegex)]
+      .filter(match => !match[1].startsWith("http"))
+      .map(match => {
+          const cleanPath = match[1].split("'")[0].trim();
+          return {fullMatch: match[0], cleanPath: cleanPath};
+      });
+
+      const idLinks = [...mainFileContent.matchAll(idLinksRegex)].filter(match => !match[1].startsWith("http"));
+      const anchors = [];
+
+      // First Loop: Merging content from linked .md files
+      for (const link of mdLinks) {
+          let filePath = path.resolve(pathToDocsifyEntryPoint, link.cleanPath);
+          if (!exists(filePath)) {
+              const fileNameOnly = path.basename(link.cleanPath);
+              filePath = findFileRecursive(pathToDocsifyEntryPoint, fileNameOnly);
+          }
+
+          if (exists(filePath)) {
+              let fileContent = await readFile(filePath, "utf-8");
+              if (checkForPng(fileContent)) {
+                  logger.info("mamy zdjęcie");
+                  fileContent = beautifyImages({pathToDocsifyEntryPoint, pathToStatic})(fileContent, filePath);
+              }
+
+              const lines = fileContent.split(/\r?\n/);
+              const firstContentfulLine = lines.find(line => line.trim().length > 0);
+
+              // If the file starts with a header and is not an ':include', treat it as a navigation anchor
+              if (firstContentfulLine && firstContentfulLine.includes('#') && !link.fullMatch.includes(":include")) {
+                  anchors.push({
+                      file: link.cleanPath,
+                      anchorText: firstContentfulLine.trim()
+                  });
+              } else {
+                  // Otherwise, replace the link in the main file with the actual file content
+                  if (fileContent) {
+                      for (let i = 0; i < mainLines.length; i++) {
+                          if (mainLines[i].includes(link.fullMatch)) {
+                              mainLines[i] = mainLines[i].replace(link.fullMatch, fileContent.trim());
+                          }
+                      }
+                  }
+              }
+          } else {
+              logger.warn(`File does not exist: ${filePath}`);
+          }
+      }
+
+      // Save initial merge results
+      await writeFile(mainFilePath, mainLines.join('\n'));
+
+      // Second Loop: Resolving Docsify internal ID links (?id=anchor)
+      for (const link of idLinks) {
+          const extractedFilePath = link[1].split("?")[0] + ".md";
+          const fileName = extractedFilePath.split("/").pop();
+          const extractedFileAnchor = link[1].split("?id=")[1];
+          let filePath = path.resolve(pathToDocsifyEntryPoint, extractedFilePath);
+
+          if (!exists(filePath)) {
+              filePath = findFileRecursive(pathToDocsifyEntryPoint, fileName);
+          }
+
+          if (exists(filePath)) {
+              let fileContent = await readFile(filePath, "utf-8");
+
+              // Fix image paths within these linked sections
+              if (checkForPng(fileContent)) {
+                  fileContent = beautifyImages({pathToDocsifyEntryPoint, pathToStatic})(fileContent, filePath);
+              }
+
+              // Normalize anchor text for comparison with headers in the main document
+              const fileAnchor = extractedFileAnchor.split('-').join(' ');
+              const anchorLine = mainLines.find(line => {
+                  const normalizedLine = line.toLowerCase().replace(/[^a-z0-9#]/g, '');
+                  const normalizedAnchor = fileAnchor.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  return normalizedLine.includes(normalizedAnchor) && normalizedLine.startsWith("#");
+              });
+
+              if (anchorLine) {
+                  anchors.push({
+                      file: link[1],
+                      anchorText: anchorLine.trim()
+                  });
+              }
+          }
+      }
+      await writeFile(mainFilePath, mainLines.join('\n'));
+      return anchors;
+  };
+
+/**
+ * Scans content to check if it contains any references to .png files.
+ * * @param {string} fileContent - The string content to scan.
+ * @returns {boolean} True if '.png' is found in any line.
+ */
 const checkForPng = (fileContent) => {
     const lines = fileContent.split(/\r?\n/);
-    for (line of lines) {
+    for (const line of lines) {
         if (line.includes(".png")) return true;
     }
     return false;
 }
+
+/**
+ * Exports the PDF link creation utility.
+ * * @param {Object} config - Configuration settings.
+ * @returns {Object} Initialized createPdfLinks function.
+ */
 module.exports = config => ({
     createPdfLinks: createPdfLinks(config),
 });
