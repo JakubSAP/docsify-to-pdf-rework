@@ -1,6 +1,6 @@
 # docsify-to-pdf
 
-[English](README.md) | [中文](README-zh.md)
+[English](README.md)
 
 > The remote repository version of docsify-to-pdf is no longer compatible. Please use the local repository version.
 

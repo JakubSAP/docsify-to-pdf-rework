@@ -10,6 +10,7 @@ const path = require("path");
 const markdownLinkExtractor = require("markdown-link-extractor");
 const isUrl = require("is-url");
 const {flatten} = require("lodash");
+const logger = require("./logger.js");
 
 const [readFile] = [fs.readFile].map(fn => util.promisify(fn));
 
@@ -30,12 +31,15 @@ const createRoadMap = ({contents}) =>
   async () => {
       let contentsPaths = Array.isArray(contents) ? contents : [contents];
 
+      logger.info("Creating content paths...");
       // Map sidebar filenames to their directory and absolute file paths
       const sidebarFilePaths = contentsPaths.map(sidebarFileName => {
           const a = path.dirname(path.resolve(sidebarFileName));
           const b = path.resolve(sidebarFileName);
           return {dir: a, filePath: b};
       });
+
+      logger.info(`Found sidebar file paths: ${JSON.stringify(sidebarFilePaths,null,2)}`);
 
       // Read all sidebar files in parallel to optimize performance
       const sidebarFileContents = await Promise.all(sidebarFilePaths.map(async ({dir, filePath}) => ({
@@ -55,6 +59,8 @@ const createRoadMap = ({contents}) =>
         .filter(link => !isUrl(link) && !(fs.lstatSync(path.resolve(dir, link)).isDirectory()))
         .map(link => path.resolve(dir, link)),
       );
+
+      logger.success("Created contents array of documents");
 
       // Flatten the array of arrays into a single list of paths
       return await flatten(contentsArray);

@@ -22,6 +22,7 @@ const defaultConfig = {
     pdfOptions: {format: "A4"},      // Puppeteer-specific PDF export settings
     emulateMedia: "print",            // CSS media type to emulate during rendering
     pathToDocsifyEntryPoint: ".",    // Root directory of the Docsify project
+    scaleDownSelector: "scale-me-down",
 };
 
 /**
@@ -52,7 +53,6 @@ const run = async incomingConfig => {
     const config = merge(preBuildedConfig, {
         docsifyRendererPort, docsifyLiveReloadPort,
     });
-
     // Initialize sub-modules with the merged configuration
     const {combineMarkdowns} = require("./markdown-combine.js")(config);
     const {closeProcess, prepareEnv, cleanUp} = require("./utils.js")(config);

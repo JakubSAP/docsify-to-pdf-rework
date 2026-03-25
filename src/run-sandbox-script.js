@@ -14,7 +14,7 @@
  * @param {string} config.pathToStatic - Path to the static assets directory.
  * @returns {Promise<Object[]>} A promise resolving to an array of processing errors encountered in the browser.
  */
-module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic}) => {
+module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic, scaleDownSelector}) => {
     // Inject Lodash into the browser context to assist with collection manipulation
     await page.addScriptTag({
         url: "https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js",
@@ -24,7 +24,7 @@ module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic})
         const text = msg.text();
         console.log(`[BROWSER ${type.toUpperCase()}] ${text}`);
     });
-    return page.evaluate(({mainMdFilenameWithoutExt, pathToStatic, anchors}) => {
+    return page.evaluate(({mainMdFilenameWithoutExt, pathToStatic, anchors, scaleDownSelector}) => {
         const errors = [];
 
         /**
@@ -103,7 +103,11 @@ module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic})
             if (nav) nav.remove();
 
             const aside = document.querySelector("aside.sidebar");
-            if (aside) aside.remove();
+            let asideWidth = 0;
+            if (aside) {
+                asideWidth = aside.offsetWidth;
+                aside.remove();
+            }
 
             const button = document.querySelector("button.sidebar-toggle");
             if (button) button.remove();
@@ -120,6 +124,25 @@ module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic})
                 content.classList.add("docsify-tabs__tab--active");
             });
 
+            //Find elements for zoom
+            const imgElements = document.querySelectorAll('img');
+            imgElements.forEach(img => img.style.maxWidth = "3000px");
+            const article = document.querySelector('article');
+            const articleWidth = article.offsetWidth;
+            console.log(`ArticleWidth: ${articleWidth}`);
+            console.log(`ScaleDownSelector: ${scaleDownSelector}`);
+            const zoomElements = document.querySelectorAll(`th, tbody,  .${scaleDownSelector}> *`);
+            console.log(`Aside Width: ${asideWidth}`)
+            zoomElements.forEach(element => {
+                const elementWidth = element.scrollWidth;
+                let widthScale = articleWidth / elementWidth;
+                if (widthScale > 1) {
+                    widthScale = 1;
+                }
+                console.log(`WidthScale: ${widthScale}`);
+                console.log(`ElementWidth: ${elementWidth}`);
+                element.style.zoom = widthScale;
+            });
             // Reset content positioning for standard document flow
             document.querySelector("section.content").style = `
                 position: static;
@@ -145,7 +168,9 @@ module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic})
          */
         const setSafeTagToHref = (anchorNodes, unsafeTag) => {
             const safeId = randomString(10);
-            anchorNodes.forEach(node => { node.href = `#${safeId}`; });
+            anchorNodes.forEach(node => {
+                node.href = `#${safeId}`;
+            });
 
             try {
                 // Decode and sanitize the original Docsify header ID
@@ -210,5 +235,5 @@ module.exports = async (page, anchors, {mainMdFilenameWithoutExt, pathToStatic})
         main();
 
         return errors;
-    }, {mainMdFilenameWithoutExt, pathToStatic, anchors});
+    }, {mainMdFilenameWithoutExt, pathToStatic, anchors, scaleDownSelector});
 };

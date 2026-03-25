@@ -1,6 +1,6 @@
-<!--
+/**
  Copyright (c) 2026 SAP SE or an SAP affiliate company. All rights reserved.
--->
+ **/
 /**
  * @fileoverview Merges linked Markdown files into a single master document and resolves image paths.
  * This module is designed for Docsify projects to prepare content for PDF generation by
@@ -53,6 +53,8 @@ const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename})
    */
   async () => {
 
+      logger.info("Creating PDF links");
+
       const absoluteStaticPath = path.resolve(pathToDocsifyEntryPoint, pathToStatic);
       const mainFilePath = path.resolve(absoluteStaticPath, mainMdFilename);
       const mainFileContent = await readFile(mainFilePath, 'utf8');
@@ -73,18 +75,23 @@ const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename})
       const idLinks = [...mainFileContent.matchAll(idLinksRegex)].filter(match => !match[1].startsWith("http"));
       const anchors = [];
 
+      logger.info(`Links to markdown files: ${JSON.stringify(mdLinks, null, 2)}`);
+      logger.info(`Links to # refrences in markdown files: ${JSON.stringify(idLinks, null, 2)}`);
+
       // First Loop: Merging content from linked .md files
       for (const link of mdLinks) {
           let filePath = path.resolve(pathToDocsifyEntryPoint, link.cleanPath);
           if (!exists(filePath)) {
+              logger.info(`Searching for file ${path.basename(filePath)} recursively`);
               const fileNameOnly = path.basename(link.cleanPath);
               filePath = findFileRecursive(pathToDocsifyEntryPoint, fileNameOnly);
           }
 
           if (exists(filePath)) {
+              logger.success(`${filePath} found !!!`);
               let fileContent = await readFile(filePath, "utf-8");
               if (checkForPng(fileContent)) {
-                  logger.info("mamy zdjęcie");
+                  logger.info("Found photo inside file");
                   fileContent = beautifyImages({pathToDocsifyEntryPoint, pathToStatic})(fileContent, filePath);
               }
 
@@ -93,11 +100,15 @@ const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename})
 
               // If the file starts with a header and is not an ':include', treat it as a navigation anchor
               if (firstContentfulLine && firstContentfulLine.includes('#') && !link.fullMatch.includes(":include")) {
+                  logger.info(`Found anchor: ${firstContentfulLine.trim()}`);
+                  logger.info(`For file: ${link.cleanPath}`);
                   anchors.push({
                       file: link.cleanPath,
                       anchorText: firstContentfulLine.trim()
                   });
               } else {
+
+                  logger.info("Could not find anchor in file. Injecting into main markdown file");
                   // Otherwise, replace the link in the main file with the actual file content
                   if (fileContent) {
                       for (let i = 0; i < mainLines.length; i++) {
@@ -123,6 +134,7 @@ const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename})
           let filePath = path.resolve(pathToDocsifyEntryPoint, extractedFilePath);
 
           if (!exists(filePath)) {
+              logger.info(`Searching for file ${path.basename(filePath)} recursively`);
               filePath = findFileRecursive(pathToDocsifyEntryPoint, fileName);
           }
 
@@ -131,6 +143,7 @@ const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename})
 
               // Fix image paths within these linked sections
               if (checkForPng(fileContent)) {
+                  logger.info("Found photo inside file");
                   fileContent = beautifyImages({pathToDocsifyEntryPoint, pathToStatic})(fileContent, filePath);
               }
 
@@ -143,6 +156,8 @@ const createPdfLinks = ({pathToDocsifyEntryPoint, pathToStatic, mainMdFilename})
               });
 
               if (anchorLine) {
+                  logger.info(`Found anchorLine: ${anchorLine.trim()}`);
+                  logger.info(`For file: ${link[1]}`);
                   anchors.push({
                       file: link[1],
                       anchorText: anchorLine.trim()

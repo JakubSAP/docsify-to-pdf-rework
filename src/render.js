@@ -28,6 +28,7 @@ const [readFile, writeFile, exists] = [fs.readFile, fs.writeFile, fs.exists].map
  * @param {Object} options.pageBreak - CSS configuration for page breaks.
  * @param {string} options.chromeExecutablePath - Absolute path to the Chromium/Chrome binary.
  * @param {string} options.pathToDocsifyEntryPoint - Root path of the Docsify project.
+ * @param {string} options.scaleDownSelector - Root path of the Docsify project.
  * @returns {Promise<void>} Resolves when the browser is closed and the PDF is saved.
  */
 const renderPdf = async (anchors, {
@@ -39,7 +40,8 @@ const renderPdf = async (anchors, {
     emulateMedia,
     pageBreak,
     chromeExecutablePath,
-    pathToDocsifyEntryPoint
+    pathToDocsifyEntryPoint,
+    scaleDownSelector
 }) => {
     const browser = await puppeteer.launch({
         defaultViewport: {
@@ -57,7 +59,7 @@ const renderPdf = async (anchors, {
 
         // Execute a sandbox script within the browser to fix anchors and navigation
         const renderProcessingErrors = await runSandboxScript(page, anchors, {
-            mainMdFilenameWithoutExt, pathToStatic,
+            mainMdFilenameWithoutExt, pathToStatic, scaleDownSelector
         });
 
         if (renderProcessingErrors.length) logger.warn("anchors processing errors", renderProcessingErrors);
@@ -115,7 +117,8 @@ const htmlToPdf = ({
                        emulateMedia,
                        pageBreak,
                        chromeExecutablePath,
-                       pathToDocsifyEntryPoint
+                       pathToDocsifyEntryPoint,
+                       scaleDownSelector
                    }) =>
   /**
    * Executes the PDF rendering process.
@@ -135,12 +138,13 @@ const htmlToPdf = ({
               emulateMedia,
               pageBreak,
               chromeExecutablePath,
-              pathToDocsifyEntryPoint
+              pathToDocsifyEntryPoint,
+              scaleDownSelector
           });
       } catch (err) {
           logger.err("puppeteer renderer error:", err);
           // Force process exit on critical failure
-          // await closeProcess(1);
+          await closeProcess(1);
       }
   };
 
